@@ -4,13 +4,13 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/muhammadidrusalawi/gocare-api/internal/handler"
 	"github.com/muhammadidrusalawi/gocare-api/internal/middleware"
-	"github.com/muhammadidrusalawi/gocare-api/provider/mail"
 )
 
 func ApiRoute(app *fiber.App) {
 	api := app.Group("/api")
 
 	api.Post("/auth/register", handler.RegisterHandler)
+	api.Post("/auth/verify-email", handler.VerifyEmailHandler)
 	api.Post("/auth/login", handler.LoginHandler)
 	api.Post("/auth/logout", middleware.AuthMiddleware, handler.LogoutHandler)
 	api.Get("/auth/profile", middleware.AuthMiddleware, handler.GetProfileHandler)
@@ -21,25 +21,11 @@ func ApiRoute(app *fiber.App) {
 	api.Put("/admin/categories/:id", middleware.AuthMiddleware, middleware.RoleMiddleware("admin"), handler.AdminUpdateCategoryHandler)
 	api.Delete("/admin/categories/:id", middleware.AuthMiddleware, middleware.RoleMiddleware("admin"), handler.AdminDeleteCategoryHandler)
 
-	api.Get("/test/mail", func(c *fiber.Ctx) error {
-		err := mail.Send(
-			"cleaverrascal1@gmail.com",
-			"TEST EMAIL",
-			"<h1>Email berhasil dikirim 🚀</h1>",
-		)
+	api.Get("/admin/products", middleware.AuthMiddleware, middleware.RoleMiddleware("admin"), handler.AdminGetAllProductsHandler)
+	api.Post("/admin/products", middleware.AuthMiddleware, middleware.RoleMiddleware("admin"), handler.AdminCreateProductHandler)
 
-		if err != nil {
-			return c.Status(500).JSON(fiber.Map{
-				"success": false,
-				"error":   err.Error(),
-			})
-		}
-
-		return c.JSON(fiber.Map{
-			"success": true,
-			"message": "email sent",
-		})
-	})
+	api.Post("/upload", middleware.AuthMiddleware, middleware.RoleMiddleware("admin"), handler.ImageUploadHandler)
+	api.Delete("/upload", middleware.AuthMiddleware, middleware.RoleMiddleware("admin"), handler.ImageDeleteHandler)
 
 	api.Get("/admin/dashboard", middleware.AuthMiddleware, middleware.RoleMiddleware("admin"), handler.AdminDashboardHandler)
 }

@@ -4,22 +4,13 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/muhammadidrusalawi/gocare-api/internal/helper"
+	"github.com/muhammadidrusalawi/gocare-api/internal/request"
+	"github.com/muhammadidrusalawi/gocare-api/internal/response"
 	"github.com/muhammadidrusalawi/gocare-api/internal/service"
 )
 
-type RegisterRequest struct {
-	Name     string `json:"name" validate:"required,min=3"`
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=6"`
-}
-
-type LoginRequest struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=6"`
-}
-
 func RegisterHandler(c *fiber.Ctx) error {
-	var req RegisterRequest
+	var req request.RegisterRequest
 
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(helper.ApiError("Invalid JSON"))
@@ -29,22 +20,49 @@ func RegisterHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(helper.ApiError(err))
 	}
 
-	user, err := service.RegisterUser(req.Name, req.Email, req.Password)
+	err := service.RegisterUser(req)
 
 	if err != nil {
 		return err
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(helper.ApiSuccess("User registered successfully", fiber.Map{
-		"id":    user.ID,
-		"name":  user.Name,
-		"email": user.Email,
-		"role":  user.Role,
-	}))
+	msg := "The verification link has been sent to the " + req.Email
+
+	return c.Status(fiber.StatusOK).JSON(helper.ApiSuccess(msg, nil))
+}
+
+func VerifyEmailHandler(c *fiber.Ctx) error {
+	var req request.VerifyEmailRequest
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(helper.ApiError("Invalid JSON"))
+	}
+
+	if err := helper.ValidateStruct(req); err != "" {
+		return c.Status(fiber.StatusBadRequest).JSON(helper.ApiError(err))
+	}
+
+	user, accessToken, err := service.VerifyEmail(req.VerificationToken)
+	if err != nil {
+		return err
+	}
+
+	res := response.LoginResponse{
+		User: response.UserResponse{
+			ID:    user.ID,
+			Name:  user.Name,
+			Email: user.Email,
+			Role:  user.Role,
+		},
+		Token: accessToken,
+	}
+
+	return c.Status(fiber.StatusOK).JSON(helper.ApiSuccess("User logged in successfully", res))
+
 }
 
 func LoginHandler(c *fiber.Ctx) error {
-	var req LoginRequest
+	var req request.LoginRequest
 
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(helper.ApiError("Invalid JSON"))
@@ -54,20 +72,22 @@ func LoginHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(helper.ApiError(err))
 	}
 
-	user, token, err := service.LoginUser(req.Email, req.Password)
+	user, token, err := service.LoginUser(req)
 	if err != nil {
 		return err
 	}
 
-	return c.JSON(helper.ApiSuccess("User logged in successfully", fiber.Map{
-		"user": fiber.Map{
-			"id":    user.ID,
-			"name":  user.Name,
-			"email": user.Email,
-			"role":  user.Role,
+	res := response.LoginResponse{
+		User: response.UserResponse{
+			ID:    user.ID,
+			Name:  user.Name,
+			Email: user.Email,
+			Role:  user.Role,
 		},
-		"token": token,
-	}))
+		Token: token,
+	}
+
+	return c.Status(fiber.StatusOK).JSON(helper.ApiSuccess("User logged in successfully", res))
 }
 
 func GetProfileHandler(c *fiber.Ctx) error {
@@ -79,25 +99,26 @@ func GetProfileHandler(c *fiber.Ctx) error {
 		return err
 	}
 
-	return c.JSON(helper.ApiSuccess("User profile successfully", fiber.Map{
-		"id":    user.ID,
-		"name":  user.Name,
-		"email": user.Email,
-		"role":  user.Role,
-	}))
+	res := response.UserResponse{
+		ID:         userID,
+		Name:       user.Name,
+		Email:      user.Email,
+		Role:       user.Role,
+		VerifiedAt: user.VerifiedAt,
+		CreatedAt:  &user.CreatedAt,
+		UpdatedAt:  &user.UpdatedAt,
+	}
+
+	return c.Status(fiber.StatusOK).JSON(helper.ApiSuccess("User profile retrieved successfully", res))
 }
 
 func LogoutHandler(c *fiber.Ctx) error {
 	tokenVal := c.Locals("token")
-	if tokenVal == nil {
-		return fiber.NewError(fiber.StatusUnauthorized, "Unauthorized")
-	}
-
 	token := tokenVal.(string)
 
 	if err := service.LogoutUser(token); err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		return err
 	}
 
-	return c.JSON(helper.ApiSuccess("User logout successfully", nil))
+	return c.Status(fiber.StatusOK).JSON(helper.ApiSuccess("User logout successfully", nil))
 }

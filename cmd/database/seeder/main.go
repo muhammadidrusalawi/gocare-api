@@ -35,15 +35,17 @@ func main() {
 }
 
 func seedCategories(db *gorm.DB) error {
+	desc := "Lorem ipsum dolor sit amet"
+
 	categories := []model.Category{
-		{Name: "Obat Bebas", Slug: "obat-bebas"},
-		{Name: "Vitamin & Suplemen", Slug: "vitamin-suplemen"},
-		{Name: "Peralatan Medis", Slug: "peralatan-medis"},
-		{Name: "Produk Bayi", Slug: "produk-bayi"},
-		{Name: "P3K", Slug: "p3k"},
-		{Name: "Obat Herbal", Slug: "obat-herbal"},
-		{Name: "Alat Bantu Dengar", Slug: "alat-bantu-dengar"},
-		{Name: "Kebutuhan Harian", Slug: "kebutuhan-harian"},
+		{Name: "Obat Bebas", Slug: "obat-bebas", Description: &desc},
+		{Name: "Vitamin & Suplemen", Slug: "vitamin-suplemen", Description: &desc},
+		{Name: "Peralatan Medis", Slug: "peralatan-medis", Description: &desc},
+		{Name: "Produk Bayi", Slug: "produk-bayi", Description: &desc},
+		{Name: "P3K", Slug: "p3k", Description: &desc},
+		{Name: "Obat Herbal", Slug: "obat-herbal", Description: &desc},
+		{Name: "Alat Bantu Dengar", Slug: "alat-bantu-dengar", Description: &desc},
+		{Name: "Kebutuhan Harian", Slug: "kebutuhan-harian", Description: &desc},
 	}
 
 	for _, c := range categories {
