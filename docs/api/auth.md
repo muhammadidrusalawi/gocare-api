@@ -2,7 +2,7 @@
 
 Used to register a user account
 
-**URL** : `/api/auth/register/`
+**URL** : `/api/auth/register`
 
 **Method** : `POST`
 
@@ -37,8 +37,7 @@ Used to register a user account
 ```json
 {
     "success": true,
-    "message": "Kode Otp berhasil dikirim, silahkan cek email Anda",
-    "data": null
+    "message": "The verification link has been sent to the email"
 }
 ```
 
@@ -53,11 +52,11 @@ Used to register a user account
 ```json
 {
   "success": false,
-  "message": "Email sudah terdaftar"
+  "message": "Email already exists"
 }
 ```
 
-**Condition** : If 'OTP Code' is sent more than 5 times in 5 minutes
+**Condition** : If verification link is sent more than once within 15 minutes
 
 **Code** : `429 TOO MANY REQUESTS`
 
@@ -66,15 +65,15 @@ Used to register a user account
 ```json
 {
   "success": false,
-  "message": "OTP sudah dikirim. Cek email atau coba lagi dalam 5 menit"
+  "message": "Verification link already sent. Please wait 15 minutes"
 }
 ```
 
-# Verify OTP
+# Verify Email
 
-Used to verify OTP code
+Used to verify a user's email address.
 
-**URL** : `/api/auth/verify-otp/`
+**URL** : `/api/auth/verify-email`
 
 **Method** : `POST`
 
@@ -84,8 +83,7 @@ Used to verify OTP code
 
 ```json
 {
-    "email": "[valid email address]",
-    "otp_code": "[OTP code in plain text]"
+    "verification_token": "[Verification token in plain text]"
 }
 ```
 
@@ -93,33 +91,35 @@ Used to verify OTP code
 
 ```json
 {
-    "email": "user@example.com",
-    "otp_code": "123456"
+  "verification_token": "uuid-token"
 }
 ```
 
 ## Success Response
 
-**Code** : `201 CREATED`
+**Code** : `200 OK`
 
 **Content example**
 
 ```json
 {
     "success": true,
-    "message": "Berhasil registrasi",
+    "message": "User logged in successfully",
     "data": {
+      "user": {
         "id": "uuid",
         "name": "User Account",
         "email": "user@example.com",
         "role": "customer"
+      },
+    "token": "jwt-token"
     }
 }
 ```
 
 ## Error Response
 
-**Condition** : If 'OTP code' is wrong or expired
+**Condition** : Token verification is invalid or expired
 
 **Code** : `400 BAD REQUEST`
 
@@ -128,20 +128,7 @@ Used to verify OTP code
 ```json
 {
   "success": false,
-  "message": "Kode OTP salah atau kadaluarsa"
-}
-```
-
-**Condition** : If 'OTP code' is wrong more than 5 times
-
-**Code** : `400 BAD REQUEST`
-
-**Content** :
-
-```json
-{
-  "success": false,
-  "message": "Kode OTP terlalu banyak salah, coba lagi dalam 5 menit"
+  "message": "Invalid or expired verification token"
 }
 ```
 
@@ -149,7 +136,7 @@ Used to verify OTP code
 
 Used to collect a Token for a registered User.
 
-**URL** : `/api/auth/login/`
+**URL** : `/api/auth/login`
 
 **Method** : `POST`
 
@@ -169,7 +156,7 @@ Used to collect a Token for a registered User.
 ```json
 {
     "email": "user@example.com",
-    "password": "abcd1234"
+    "password": "secret-password"
 }
 ```
 
@@ -181,16 +168,17 @@ Used to collect a Token for a registered User.
 
 ```json
 {
-    "message": "Berhasil login",
-    "data": {
-      "user": {
-        "id": "uuid",
-        "name": "User Account",
-        "email": "user@example.com",
-        "role": "customer"
-      },
-      "token": "93144b288eb1fdccbe46d6fc0f241a51766ecd3d"
-    }
+  "success": true,
+  "message": "User logged in successfully",
+  "data": {
+    "user": {
+      "id": "uuid",
+      "name": "User Account",
+      "email": "user@example.com",
+      "role": "customer"
+    },
+    "token": "jwt-token"
+  }
 }
 ```
 
@@ -205,7 +193,7 @@ Used to collect a Token for a registered User.
 ```json
 {
   "success": false,
-  "message": "Email or password salah"
+  "message": "Email or password is incorrect"
 }
 ```
 
@@ -213,7 +201,7 @@ Used to collect a Token for a registered User.
 
 Used to get user profile
 
-**URL** : `/api/auth/profile/`
+**URL** : `/api/auth/profile`
 
 **Method** : `GET`
 
@@ -228,12 +216,15 @@ Used to get user profile
 ```json
 {
     "success": true,
-    "message": "Berhasil logout",
+    "message": "User profile retrieved successfully",
     "data": {
       "id": "uuid",
       "name": "User Account",
       "email": "user@example.com",
-      "role": "customer"
+      "role": "customer",
+      "verified_at": "2026-03-08T10:12:34Z",
+      "created_at": "2026-03-08T09:50:11Z",
+      "updated_at": "2026-03-08T10:12:34Z"
     }
 }
 ```
@@ -249,7 +240,7 @@ Used to get user profile
 ```json
 {
   "success": false,
-  "message": "Token tidak valid atau sudah kadaluarsa"
+  "message": "Unauthenticated"
 }
 ```
 
@@ -257,7 +248,7 @@ Used to get user profile
 
 Used to invalidate a Token for a registered User.
 
-**URL** : `/api/auth/logout/`
+**URL** : `/api/auth/logout`
 
 **Method** : `POST`
 
@@ -272,8 +263,7 @@ Used to invalidate a Token for a registered User.
 ```json
 {
     "success": true,
-    "message": "Berhasil logout",
-    "data": null
+    "message": "User logout successfully"
 }
 ```
 
@@ -288,131 +278,6 @@ Used to invalidate a Token for a registered User.
 ```json
 {
   "success": false,
-  "message": "Token tidak valid atau sudah kadaluarsa"
-}
-```
-
-# Forgot Password
-
-Used to send a reset password link to the user's email
-
-**URL** : `/api/auth/forgot-password/`
-
-**Method** : `POST`
-
-**Auth required** : NO
-
-**Data constraints**
-
-```json
-{
-    "email": "[valid email address]"
-}
-```
-
-**Data example**
-
-```json
-{
-    "email": "user@example.com"
-}
-```
-
-## Success Response
-
-**Code** : `200 OK`
-
-**Content example**
-
-```json
-{
-    "success": true,
-    "message": "Link reset password terkirim. Silahkan cek email.",
-    "data": null
-}
-```
-
-## Error Response
-
-**Condition** : If 'email' is not found or invalid
-
-**Code** : `401 UNAUTHORIZED`
-
-**Content** :
-
-```json
-{
-  "success": false,
-  "message": "Email tidak ditemukan"
-}
-```
-
-**Condition** : If 'email' is sent in less than 15 minutes
-
-**Code** : `429 TOO MANY REQUESTS`
-
-**Content** :
-
-```json
-{
-  "success": false,
-  "message": "Link reset password sudah dikirim. Cek email."
-}
-```
-
-# Confirm New Password
-
-Used to confirm new password after visit reset password link (redirect to client url with token)
-
-**URL** : `/api/auth/confirm-new-password/`
-
-**Method** : `POST`
-
-**Auth required** : NO
-
-**Data constraints**
-
-```json
-{
-    "new_password": "[new password in plain text]",
-    "token": "[token in plain text]"
-}
-```
-
-**Data example**
-
-```json
-{
-    "new_password": "abcd1234",
-    "token": "93144b288eb1fdccbe46d6fc0f241a51766ecd3d"
-}
-```
-
-## Success Response
-
-**Code** : `200 OK`
-
-**Content example**
-
-```json
-{
-    "success": true,
-    "message": "Password baru berhasil dibuat",
-    "data": null
-}
-```
-
-## Error Response
-
-**Condition** : If 'token' is invalid or expired
-
-**Code** : `400 BAD REQUEST`
-
-**Content** :
-
-```json
-{
-  "success": false,
-  "message": "Token tidak valid atau sudah kadaluarsa"
+  "message": "Unauthenticated"
 }
 ```
