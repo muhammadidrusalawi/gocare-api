@@ -72,7 +72,7 @@ func RegisterUser(req request.RegisterRequest) error {
 	clientURL := os.Getenv("CLIENT_URL")
 
 	verifyLink := fmt.Sprintf(
-		"%s/verify-email?token=%s",
+		"%s/auth/verify-email?token=%s",
 		clientURL,
 		token,
 	)
