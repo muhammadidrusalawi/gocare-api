@@ -23,6 +23,9 @@ func ApiRoute(app *fiber.App) {
 
 	api.Get("/admin/products", middleware.AuthMiddleware, middleware.RoleMiddleware("admin"), handler.AdminGetAllProductsHandler)
 	api.Post("/admin/products", middleware.AuthMiddleware, middleware.RoleMiddleware("admin"), handler.AdminCreateProductHandler)
+	api.Get("/admin/products/:id", middleware.AuthMiddleware, middleware.RoleMiddleware("admin"), handler.AdminGetProductByIDHandler)
+	api.Put("/admin/products/:id", middleware.AuthMiddleware, middleware.RoleMiddleware("admin"), handler.AdminUpdateProductHandler)
+	api.Delete("/admin/products/:id", middleware.AuthMiddleware, middleware.RoleMiddleware("admin"), handler.AdminDeleteProductHandler)
 
 	api.Post("/upload", middleware.AuthMiddleware, middleware.RoleMiddleware("admin"), handler.ImageUploadHandler)
 	api.Delete("/upload", middleware.AuthMiddleware, middleware.RoleMiddleware("admin"), handler.ImageDeleteHandler)

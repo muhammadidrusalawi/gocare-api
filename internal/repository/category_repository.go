@@ -14,6 +14,7 @@ type CategoryRepository interface {
 	FindByName(name string) (*model.Category, error)
 	FindBySlug(slug string) (*model.Category, error)
 	FindAll() ([]*model.Category, error)
+	CountProducts(categoryID string) (int64, error)
 	Create(category *model.Category) error
 	Update(category *model.Category) error
 	Delete(id string) error
@@ -107,6 +108,20 @@ func (r *categoryRepository) FindAll() ([]*model.Category, error) {
 
 	r.cacheSet(cacheKey, categories, 10*time.Minute)
 	return categories, nil
+}
+
+func (r *categoryRepository) CountProducts(categoryID string) (int64, error) {
+	var count int64
+
+	err := r.db.Model(&model.Product{}).
+		Where("category_id = ?", categoryID).
+		Count(&count).Error
+
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
 }
 
 func (r *categoryRepository) Create(category *model.Category) error {

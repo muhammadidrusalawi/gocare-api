@@ -5,6 +5,7 @@ import (
 	"github.com/muhammadidrusalawi/gocare-api/internal/helper"
 	"github.com/muhammadidrusalawi/gocare-api/internal/model"
 	"github.com/muhammadidrusalawi/gocare-api/internal/repository"
+	"github.com/muhammadidrusalawi/gocare-api/internal/request"
 	"github.com/muhammadidrusalawi/gocare-api/provider/database"
 )
 
@@ -18,35 +19,6 @@ func AdminGetAllCategories() []*model.Category {
 	return categories
 }
 
-func AdminCreateCategory(name string) (*model.Category, error) {
-	categoryRepo := repository.NewCategoryRepository(database.DB)
-	categoryExist, err := categoryRepo.FindByName(name)
-	if err == nil && categoryExist != nil {
-		return nil, fiber.NewError(fiber.StatusConflict, "Category name already exists")
-	}
-
-	slug, err := helper.GenerateUniqueSlug(
-		database.DB,
-		&model.Category{},
-		name,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	category := &model.Category{
-		Name: name,
-		Slug: slug,
-	}
-
-	if err := categoryRepo.Create(category); err != nil {
-		return nil, err
-	}
-
-	return category, nil
-}
-
 func AdminGetCategoryByID(ID string) (*model.Category, error) {
 	categoryRepo := repository.NewCategoryRepository(database.DB)
 
@@ -58,15 +30,9 @@ func AdminGetCategoryByID(ID string) (*model.Category, error) {
 	return category, nil
 }
 
-func AdminUpdateCategory(ID, name string) (*model.Category, error) {
+func AdminCreateCategory(req request.CreateCategoryRequest) (*model.Category, error) {
 	categoryRepo := repository.NewCategoryRepository(database.DB)
-
-	category, err := categoryRepo.FindByID(ID)
-	if err != nil {
-		return nil, fiber.NewError(fiber.StatusNotFound, "Category not found")
-	}
-
-	categoryExist, err := categoryRepo.FindByName(name)
+	categoryExist, err := categoryRepo.FindByName(req.Name)
 	if err == nil && categoryExist != nil {
 		return nil, fiber.NewError(fiber.StatusConflict, "Category name already exists")
 	}
@@ -74,15 +40,56 @@ func AdminUpdateCategory(ID, name string) (*model.Category, error) {
 	slug, err := helper.GenerateUniqueSlug(
 		database.DB,
 		&model.Category{},
-		name,
+		req.Name,
 	)
 
 	if err != nil {
 		return nil, err
 	}
 
-	category.Name = name
-	category.Slug = slug
+	category := &model.Category{
+		Name:        req.Name,
+		Slug:        slug,
+		Description: req.Description,
+	}
+
+	if err := categoryRepo.Create(category); err != nil {
+		return nil, err
+	}
+
+	return category, nil
+}
+
+func AdminUpdateCategory(ID string, req request.UpdateCategoryRequest) (*model.Category, error) {
+	categoryRepo := repository.NewCategoryRepository(database.DB)
+
+	category, err := categoryRepo.FindByID(ID)
+	if err != nil {
+		return nil, fiber.NewError(fiber.StatusNotFound, "Category not found")
+	}
+
+	if req.Name != "" {
+		categoryExist, err := categoryRepo.FindByName(req.Name)
+		if err == nil && categoryExist != nil && categoryExist.ID != category.ID {
+			return nil, fiber.NewError(fiber.StatusConflict, "Category name already exists")
+		}
+
+		slug, err := helper.GenerateUniqueSlug(
+			database.DB,
+			&model.Category{},
+			req.Name,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		category.Name = req.Name
+		category.Slug = slug
+	}
+
+	if req.Description != nil {
+		category.Description = req.Description
+	}
 
 	if err := categoryRepo.Update(category); err != nil {
 		return nil, err
