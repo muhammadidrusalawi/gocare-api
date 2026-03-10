@@ -13,6 +13,7 @@ type UserRepository interface {
 	FindByID(id string) (*model.User, error)
 	FindByEmail(email string) (*model.User, error)
 	Create(user *model.User) error
+	Upsert(user *model.User) error
 }
 
 type userRepository struct {
@@ -82,5 +83,20 @@ func (r *userRepository) Create(user *model.User) error {
 		"user:id:"+user.ID,
 		"user:email:"+user.Email,
 	)
+	return nil
+}
+
+func (r *userRepository) Upsert(user *model.User) error {
+	if err := r.db.
+		Where("email = ?", user.Email).
+		FirstOrCreate(user).Error; err != nil {
+		return err
+	}
+
+	r.cacheDel(
+		"user:id:"+user.ID,
+		"user:email:"+user.Email,
+	)
+
 	return nil
 }

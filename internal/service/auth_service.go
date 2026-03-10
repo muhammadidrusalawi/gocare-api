@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -141,6 +142,79 @@ func LoginUser(req request.LoginRequest) (*model.User, string, error) {
 
 	if user.VerifiedAt == nil {
 		return nil, "", fiber.NewError(fiber.StatusForbidden, "User not found")
+	}
+
+	token, err := auth.GenerateToken(user.ID, user.Email, user.Role)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return user, token, nil
+}
+
+func GoogleAuthRedirect() (string, error) {
+	state := uuid.NewString()
+	url := auth.GoogleConfig().AuthCodeURL(state)
+
+	return url, nil
+}
+
+func GoogleCallback(code string, state string) string {
+	clientURL := os.Getenv("CLIENT_URL")
+
+	redirectURL := fmt.Sprintf(
+		"%s/auth/google-callback?code=%s&state=%s",
+		clientURL,
+		code,
+		state,
+	)
+
+	return redirectURL
+}
+
+func GoogleAuthExchange(req request.GoogleExchange) (*model.User, string, error) {
+	userRepo := repository.NewUserRepository(database.DB)
+
+	oauthCode, err := auth.GoogleConfig().Exchange(context.Background(), req.Code)
+	if err != nil {
+		return nil, "", err
+	}
+
+	client := auth.GoogleConfig().Client(context.Background(), oauthCode)
+
+	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
+	if err != nil {
+		return nil, "", err
+	}
+	defer resp.Body.Close()
+
+	var googleUser struct {
+		Email string `json:"email"`
+		Name  string `json:"name"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&googleUser); err != nil {
+		return nil, "", err
+	}
+
+	now := time.Now()
+	randomPassword := uuid.NewString()
+
+	hashed, err := bcrypt.GenerateFromPassword([]byte(randomPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, "", err
+	}
+
+	user := &model.User{
+		Name:       googleUser.Name,
+		Email:      googleUser.Email,
+		Password:   string(hashed),
+		Role:       "customer",
+		VerifiedAt: &now,
+	}
+
+	if err := userRepo.Upsert(user); err != nil {
+		return nil, "", err
 	}
 
 	token, err := auth.GenerateToken(user.ID, user.Email, user.Role)

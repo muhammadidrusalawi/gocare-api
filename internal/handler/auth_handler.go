@@ -90,6 +90,53 @@ func LoginHandler(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(helper.ApiSuccess("User logged in successfully", res))
 }
 
+func GoogleAuthRedirectHandler(c *fiber.Ctx) error {
+	url, err := service.GoogleAuthRedirect()
+	if err != nil {
+		return err
+	}
+
+	return c.Redirect(url)
+}
+
+func GoogleAuthCallbackHandler(c *fiber.Ctx) error {
+	code := c.Query("code")
+	state := c.Query("state")
+
+	redirectURL := service.GoogleCallback(code, state)
+
+	return c.Redirect(redirectURL)
+}
+
+func GoogleAuthExchangeHandler(c *fiber.Ctx) error {
+	var req request.GoogleExchange
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(helper.ApiError("Invalid JSON"))
+	}
+
+	if err := helper.ValidateStruct(req); err != "" {
+		return c.Status(fiber.StatusBadRequest).JSON(helper.ApiError(err))
+	}
+
+	user, token, err := service.GoogleAuthExchange(req)
+	if err != nil {
+		return err
+	}
+
+	res := response.LoginResponse{
+		User: response.UserResponse{
+			ID:    user.ID,
+			Name:  user.Name,
+			Email: user.Email,
+			Role:  user.Role,
+		},
+		Token: token,
+	}
+
+	return c.Status(fiber.StatusOK).JSON(helper.ApiSuccess("User logged in successfully", res))
+}
+
 func GetProfileHandler(c *fiber.Ctx) error {
 	claims := c.Locals("claims").(jwt.MapClaims)
 	userID := claims["user_id"].(string)

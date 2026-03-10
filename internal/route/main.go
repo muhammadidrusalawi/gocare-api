@@ -12,6 +12,9 @@ func ApiRoute(app *fiber.App) {
 	api.Post("/auth/register", handler.RegisterHandler)
 	api.Post("/auth/verify-email", handler.VerifyEmailHandler)
 	api.Post("/auth/login", handler.LoginHandler)
+	api.Get("/auth/google", handler.GoogleAuthRedirectHandler)
+	api.Get("/auth/google/callback", handler.GoogleAuthCallbackHandler)
+	api.Post("/auth/google/exchange", handler.GoogleAuthExchangeHandler)
 	api.Post("/auth/logout", middleware.AuthMiddleware, handler.LogoutHandler)
 	api.Get("/auth/profile", middleware.AuthMiddleware, handler.GetProfileHandler)
 
