@@ -159,6 +159,80 @@ func GetProfileHandler(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(helper.ApiSuccess("User profile retrieved successfully", res))
 }
 
+func ForgotPasswordHandler(c *fiber.Ctx) error {
+	var req request.ForgotPasswordRequest
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(helper.ApiError("Invalid JSON"))
+	}
+
+	if err := helper.ValidateStruct(req); err != "" {
+		return c.Status(fiber.StatusBadRequest).JSON(helper.ApiError(err))
+	}
+
+	err := service.ForgotPassword(req)
+
+	if err != nil {
+		return err
+	}
+
+	return c.Status(fiber.StatusOK).JSON(helper.ApiSuccess("A password reset link has been sent. Please check your inbox.", nil))
+}
+
+func ResetPasswordHandler(c *fiber.Ctx) error {
+	var req request.ResetPasswordRequest
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(helper.ApiError("Invalid JSON"))
+	}
+
+	if err := helper.ValidateStruct(req); err != "" {
+		return c.Status(fiber.StatusBadRequest).JSON(helper.ApiError(err))
+	}
+
+	err := service.ResetPassword(req)
+
+	if err != nil {
+		return err
+	}
+
+	return c.Status(fiber.StatusOK).JSON(helper.ApiSuccess("Your password has been reset successfully.", nil))
+}
+
+func UpdateUserProfileHandler(c *fiber.Ctx) error {
+	claims := c.Locals("claims").(jwt.MapClaims)
+	userID := claims["user_id"].(string)
+
+	var req request.UpdateUserProfileRequest
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).
+			JSON(helper.ApiError("Invalid JSON"))
+	}
+
+	if err := helper.ValidateStruct(req); err != "" {
+		return c.Status(fiber.StatusBadRequest).
+			JSON(helper.ApiError(err))
+	}
+
+	user, err := service.UpdateUserProfile(userID, req)
+	if err != nil {
+		return err
+	}
+
+	res := response.UserResponse{
+		ID:         user.ID,
+		Name:       user.Name,
+		Email:      user.Email,
+		Role:       user.Role,
+		VerifiedAt: user.VerifiedAt,
+		CreatedAt:  &user.CreatedAt,
+		UpdatedAt:  &user.UpdatedAt,
+	}
+
+	return c.Status(fiber.StatusOK).JSON(helper.ApiSuccess("User profile updated successfully", res))
+}
+
 func LogoutHandler(c *fiber.Ctx) error {
 	tokenVal := c.Locals("token")
 	token := tokenVal.(string)

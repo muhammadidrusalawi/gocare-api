@@ -235,6 +235,132 @@ func ProfileUser(userID string) (*model.User, error) {
 	return user, nil
 }
 
+func ForgotPassword(req request.ForgotPasswordRequest) error {
+	userRepo := repository.NewUserRepository(database.DB)
+
+	user, err := userRepo.FindByEmail(req.Email)
+	if err != nil {
+		return nil
+	}
+
+	rateKey := "forgot-password:email:" + user.Email
+
+	ok, _ := cache.Client.SetNX(
+		cache.Ctx,
+		rateKey,
+		1,
+		15*time.Minute,
+	).Result()
+
+	if !ok {
+		return fiber.NewError(
+			fiber.StatusTooManyRequests,
+			"Reset link already sent. Please wait 15 minutes",
+		)
+	}
+
+	token := uuid.NewString()
+
+	err = cache.Client.Set(
+		cache.Ctx,
+		"forgot-password:token:"+token,
+		user.ID,
+		15*time.Minute,
+	).Err()
+
+	if err != nil {
+		return err
+	}
+
+	clientURL := os.Getenv("CLIENT_URL")
+
+	resetLink := fmt.Sprintf(
+		"%s/auth/reset-password?token=%s",
+		clientURL,
+		token,
+	)
+
+	emailBody := fmt.Sprintf(`
+		<h1>Reset Your Password</h1>
+		<p>Click the link below to reset your password:</p>
+		<a href="%s">%s</a>
+	`, resetLink, resetLink)
+
+	go func(email, subject, body string) {
+		_ = mail.Send(email, subject, body)
+	}(user.Email, "Reset Password", emailBody)
+
+	return nil
+}
+
+func ResetPassword(req request.ResetPasswordRequest) error {
+	userRepo := repository.NewUserRepository(database.DB)
+
+	key := "forgot-password:token:" + req.Token
+
+	userID, err := cache.Client.Get(cache.Ctx, key).Result()
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid or expired reset token")
+	}
+
+	deleted, err := cache.Client.Del(cache.Ctx, key).Result()
+	if err != nil {
+		return err
+	}
+
+	if deleted == 0 {
+		return fiber.NewError(fiber.StatusBadRequest, "Reset token already used")
+	}
+
+	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	_, err = userRepo.UpdateUser(userID, map[string]interface{}{
+		"password": hashed,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func UpdateUserProfile(userID string, req request.UpdateUserProfileRequest) (*model.User, error) {
+	userRepo := repository.NewUserRepository(database.DB)
+
+	fmt.Printf("DEBUG REQ: %+v\n", req)
+	fmt.Println("Password:", req.Password)
+	fmt.Println("ConfirmPassword:", req.ConfirmPassword)
+
+	fields := map[string]interface{}{}
+
+	if req.Name != "" {
+		fields["name"] = req.Name
+	}
+
+	if req.Password != "" {
+		if req.Password != req.ConfirmPassword {
+			return nil, fiber.NewError(fiber.StatusBadRequest, "Password confirmation does not match")
+		}
+
+		hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return nil, err
+		}
+
+		fields["password"] = string(hashed)
+	}
+
+	user, err := userRepo.UpdateUser(userID, fields)
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
 func LogoutUser(token string) error {
 	return auth.RevokeToken(token)
 }

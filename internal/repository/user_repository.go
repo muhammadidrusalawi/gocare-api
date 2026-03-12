@@ -14,6 +14,8 @@ type UserRepository interface {
 	FindByEmail(email string) (*model.User, error)
 	Create(user *model.User) error
 	Upsert(user *model.User) error
+	UpdatePassword(id string, password string) (*model.User, error)
+	UpdateUser(id string, fields map[string]interface{}) (*model.User, error)
 }
 
 type userRepository struct {
@@ -99,4 +101,48 @@ func (r *userRepository) Upsert(user *model.User) error {
 	)
 
 	return nil
+}
+
+func (r *userRepository) UpdatePassword(id string, password string) (*model.User, error) {
+	var user model.User
+
+	if err := r.db.
+		Model(&model.User{}).
+		Where("id = ?", id).
+		Update("password", password).Error; err != nil {
+		return nil, err
+	}
+
+	if err := r.db.Where("id = ?", id).First(&user).Error; err != nil {
+		return nil, err
+	}
+
+	r.cacheDel(
+		"user:id:"+user.ID,
+		"user:email:"+user.Email,
+	)
+
+	return &user, nil
+}
+
+func (r *userRepository) UpdateUser(id string, fields map[string]interface{}) (*model.User, error) {
+	var user model.User
+
+	if err := r.db.
+		Model(&model.User{}).
+		Where("id = ?", id).
+		Updates(fields).Error; err != nil {
+		return nil, err
+	}
+
+	if err := r.db.Where("id = ?", id).First(&user).Error; err != nil {
+		return nil, err
+	}
+
+	r.cacheDel(
+		"user:id:"+user.ID,
+		"user:email:"+user.Email,
+	)
+
+	return &user, nil
 }
