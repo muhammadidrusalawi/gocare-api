@@ -37,4 +37,13 @@ func ApiRoute(app *fiber.App) {
 	api.Delete("/upload", middleware.AuthMiddleware, middleware.RoleMiddleware("admin"), handler.ImageDeleteHandler)
 
 	api.Get("/admin/dashboard", middleware.AuthMiddleware, middleware.RoleMiddleware("admin"), handler.AdminDashboardHandler)
+
+	api.Get("/products/:slug", handler.AdminGetProductBySlugHandler)
+
+	api.Get("/addresses", middleware.AuthMiddleware, middleware.RoleMiddleware("customer"), handler.GetAllAddressesByOwnerHandler)
+	api.Get("/addresses/:id", middleware.AuthMiddleware, middleware.RoleMiddleware("customer"), handler.GetAddressByIDByOwnerHandler)
+	api.Post("/addresses", middleware.AuthMiddleware, middleware.RoleMiddleware("customer"), handler.CreateAddressByOwnerHandler)
+	api.Put("/addresses/:id", middleware.AuthMiddleware, middleware.RoleMiddleware("customer"), handler.UpdateAddressByOwner)
+	api.Delete("/addresses/:id", middleware.AuthMiddleware, middleware.RoleMiddleware("customer"), handler.DeleteAddressByOwnerHandler)
+	api.Patch("/addresses/:id/set-default", middleware.AuthMiddleware, middleware.RoleMiddleware("customer"), handler.SetDefaultAddressByOwnerHandler)
 }
