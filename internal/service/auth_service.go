@@ -330,10 +330,6 @@ func ResetPassword(req request.ResetPasswordRequest) error {
 func UpdateUserProfile(userID string, req request.UpdateUserProfileRequest) (*model.User, error) {
 	userRepo := repository.NewUserRepository(database.DB)
 
-	fmt.Printf("DEBUG REQ: %+v\n", req)
-	fmt.Println("Password:", req.Password)
-	fmt.Println("ConfirmPassword:", req.ConfirmPassword)
-
 	fields := map[string]interface{}{}
 
 	if req.Name != "" {
